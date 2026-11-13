@@ -1,10 +1,12 @@
-(tag_name) @keyword
+(document) @comment.doc
+
+(tag_name) @comment.doc.tag
 
 (tag
   (variable_name) @variable)
 
 (variable_name
-  "$" @operator)
+  "$" @variable)
 
 (tag
   (tag_name) @keyword

@@ -1,10 +1,10 @@
 id = "php"
-name = "PHP"
+name = "PHP (PhpStorm highlighting)"
 description = "PHP support."
-version = "0.5.4"
+version = "0.5.4-phpstorm.1"
 schema_version = 1
 authors = ["Piotr Osiewicz <piotr@zed.dev>"]
-repository = "https://github.com/zed-extensions/php"
+repository = "https://github.com/the-medo/zed-php"
 
 [language_servers.phptools]
 name = "PhpTools"

@@ -1,100 +1,74 @@
-(php_tag) @tag
+; In expression position, a bare PHP name is a constant reference.
+(primary_expression/name) @constant
+(primary_expression/qualified_name (name) @constant)
+(primary_expression/relative_name (name) @constant)
+(const_element . (name) @constant)
+(enum_case name: (name) @constant)
 
-(php_end_tag) @tag
+[(php_tag) (php_end_tag)] @keyword
 
-; Types
-(primitive_type) @type.builtin
-
-(cast_type) @type.builtin
-
-(named_type
-  (name) @type) @type
-
-(named_type
-  (qualified_name) @type) @type
-
-; Named arguments (PHP 8+)
-(argument
-  name: (name) @variable.parameter)
-
-; Functions
-(array_creation_expression
-  "array" @function.builtin)
-
-(list_literal
-  "list" @function.builtin)
-
-(method_declaration
-  name: (name) @function.method)
-
-(function_call_expression
-  function: [
-    (qualified_name
-      (name))
-    (name)
-  ] @function)
-
-(scoped_call_expression
-  name: (name) @function)
-
-(member_call_expression
-  name: (name) @function.method)
-
-(nullsafe_member_call_expression
-  name: (name) @function.method)
-
-(function_definition
-  name: (name) @function)
-
-; Member
-(property_element
-  (variable_name) @property)
-
-(member_access_expression
-  name: (variable_name
-    (name)) @property)
-
-(member_access_expression
-  name: (name) @property)
-
-(nullsafe_member_access_expression
-  name: (variable_name
-    (name)) @property)
-
-(nullsafe_member_access_expression
-  name: (name) @property)
-
-; Class constant access (e.g., Class::CONSTANT)
-(class_constant_access_expression
-  (_)
-  (name) @constant)
-
-; Special classes
-(relative_scope) @constructor
-
-((object_creation_expression
-  (name) @constructor)
-  (#any-of? @constructor "self" "parent"))
-
-((binary_expression
-  operator: "instanceof"
-  right: (name) @constructor)
-  (#any-of? @constructor "self" "parent"))
-
-; Variables
-((name) @constructor
-  (#match? @constructor "^[A-Z]"))
-
-((name) @constant
-  (#match? @constant "^_?[A-Z][A-Z\\d_]+$"))
-
-((name) @constant.builtin
-  (#match? @constant.builtin "^__[A-Z][A-Z\d_]+__$"))
-
-((name) @variable.builtin
-  (#eq? @variable.builtin "this"))
-
+; Variables, including their sigil. A dynamic variable's inner expression
+; still receives its own highlights.
 (variable_name) @variable
+(variable_name "$" @variable (name) @variable)
+((variable_name "$" @variable.builtin (name) @variable.builtin.this)
+  (#eq? @variable.builtin.this "this"))
+
+; Types and namespaces
+[(primitive_type) (cast_type)] @type.builtin
+(relative_scope) @keyword
+(namespace_name (name) @namespace)
+
+[
+  (class_declaration name: (name) @type)
+  (interface_declaration name: (name) @type)
+  (trait_declaration name: (name) @type)
+  (enum_declaration name: (name) @type)
+]
+
+[
+  (named_type (_) @type)
+  (base_clause (_) @type)
+  (class_interface_clause (_) @type)
+  (use_declaration [(name) (qualified_name) (relative_name)] @type)
+  (object_creation_expression [(name) (qualified_name) (relative_name)] @type)
+  (binary_expression operator: "instanceof" right: [(name) (qualified_name) (relative_name)] @type)
+  (scoped_call_expression scope: [(name) (qualified_name) (relative_name)] @type)
+  (scoped_property_access_expression scope: [(name) (qualified_name) (relative_name)] @type)
+  (class_constant_access_expression . [(name) (qualified_name) (relative_name)] @type)
+]
+
+; A use clause can import a type, a function or a constant. Grouped imports
+; may put that keyword on the enclosing declaration.
+(namespace_use_clause [(name) (qualified_name)] @type)
+(namespace_use_clause type: "function" [(name) (qualified_name)] @function)
+(namespace_use_clause type: "const" [(name) (qualified_name)] @constant)
+(namespace_use_declaration type: "function"
+  body: (namespace_use_group (namespace_use_clause [(name) (qualified_name)] @function)))
+(namespace_use_declaration type: "const"
+  body: (namespace_use_group (namespace_use_clause [(name) (qualified_name)] @constant)))
+
+; Named arguments
+(argument name: (name) @variable.parameter)
+
+; Functions and methods
+(array_creation_expression "array" @function.builtin)
+(list_literal "list" @function.builtin)
+(function_definition name: (name) @function.definition)
+(function_call_expression function: [(name) @function.php (qualified_name (name) @function.php) (relative_name (name) @function.php)])
+((function_call_expression function: (name) @keyword)
+  (#match? @keyword "(?i)^(isset|empty|eval|exit|die)$"))
+(method_declaration name: (name) @function.method)
+(scoped_call_expression name: (name) @function.method.static)
+(member_call_expression name: (name) @function.method)
+(nullsafe_member_call_expression name: (name) @function.method)
+
+; Members. In $object->$name the name is itself a variable.
+(property_element name: (variable_name "$" @property (name) @property))
+(scoped_property_access_expression name: (variable_name "$" @property.static (name) @property.static))
+(member_access_expression name: (name) @property)
+(nullsafe_member_access_expression name: (name) @property)
+(class_constant_access_expression (_) (name) @constant)
 
 ; Basic tokens
 [
@@ -115,6 +89,8 @@
 (float) @number
 
 (comment) @comment
+((comment) @comment.doc
+  (#match? @comment.doc "^/\\*\\*"))
 
 ; Operators
 [
@@ -163,8 +139,9 @@
   "++"
   "--"
   "@"
-  "$"
 ] @operator
+
+(dynamic_variable_name "$" @operator)
 
 ; punctuation
 [
@@ -176,7 +153,6 @@
   "}"
 ] @punctuation.bracket
 
-; "$" @punctuation.special
 ; Keywords
 "abstract" @keyword
 
